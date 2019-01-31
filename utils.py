@@ -3,12 +3,12 @@ from dialogue_config import FAIL, SUCCESS
 
 def convert_list_to_dict(lst):
     """
-    Convert list to dict where the keys are the list elements, and the values are the indices of the elements in the list.
+    将list转化为dict, keys为list的值，values为标号
 
-    Parameters:
+    参数:
         lst (list)
 
-    Returns:
+    返回:
         dict
     """
 

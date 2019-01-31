@@ -4,14 +4,11 @@ import copy
 
 
 class DBQuery:
-    """Queries the database for the state tracker."""
+    """查询数据库，为状态追踪器（state tracker）提供信息"""
 
     def __init__(self, database):
         """
-        The constructor for DBQuery.
-
-        Parameters:
-            database (dict): The database in the format dict(long: dict)
+        参数：以dict方式存储的关于电影信息的database
         """
 
         self.database = database
@@ -19,6 +16,7 @@ class DBQuery:
         self.cached_db_slot = defaultdict(dict)
         # {frozenset: {'#': {'slot': 'value'}}} A dict of dicts of dicts, a dict of DB sub-dicts
         self.cached_db = defaultdict(dict)
+        # 不需要查询的keys
         self.no_query = no_query_keys
         self.match_key = usersim_default_key
 
@@ -29,31 +27,34 @@ class DBQuery:
         Searches through the database to fill the inform slots with PLACEHOLDER with values that work given the current
         constraints of the current episode.
 
-        Parameters:
-            inform_slot_to_fill (dict): Inform slots to fill with values
-            current_inform_slots (dict): Current inform slots with values from the StateTracker
+        参数:
+            inform_slot_to_fill (dict): 需要查询values的Inform slots
+            current_inform_slots (dict): StateTracker中现有的已知values的inform slots
 
-        Returns:
-            dict: inform_slot_to_fill filled with values
+        返回:
+            dict: inform_slot_to_fill 被填充好values的inform_slot_to_fill
         """
 
-        # For this simple system only one inform slot should ever passed in
+        # 在这个框架里，每一回合里inform slot 只允许有一个
         assert len(inform_slot_to_fill) == 1
-
+        # 取第一个（也是唯一的一个）key,即词槽
         key = list(inform_slot_to_fill.keys())[0]
 
-        # This removes the inform we want to fill from the current informs if it is present in the current informs
-        # so it can be re-queried
+        # 深拷贝current_inform_slots为current_informs
+        # 如里key在current_inform_slots中已存在，则在current_inform_slots中去除这个key
+        # 这样这个key就可以被重复查询
         current_informs = copy.deepcopy(current_inform_slots)
         current_informs.pop(key, None)
 
-        # db_results is a dict of dict in the same exact format as the db, it is just a subset of the db
+        # 在current_informs的条件下，返回符合条件的信息，相当于返回结果是一个db的subset
         db_results = self.get_db_results(current_informs)
 
+        # 利用_count_slot_values函数在db中查询key可能的取值以及相应的数量，返回以values-occurrences为键值对的dict
+        # 将occurrence最大的value 作为key 的 value，如果没有则no match available
         filled_inform = {}
         values_dict = self._count_slot_values(key, db_results)
         if values_dict:
-            # Get key with max value (ie slot value with highest count of available results)
+            # 取occurrence最大的value作为key的value
             filled_inform[key] = max(values_dict, key=values_dict.get)
         else:
             filled_inform[key] = 'no match available'
@@ -62,14 +63,13 @@ class DBQuery:
 
     def _count_slot_values(self, key, db_subdict):
         """
-        Return a dict of the different values and occurrences of each, given a key, from a sub-dict of database
+        key为词槽，查询此词槽在db_subdict中对应的取值以及不同取值对应的出现次数
+        参数:
+            key (string): 需要查询计数信息的key
+            db_subdict (dict): database 的一部分
 
-        Parameters:
-            key (string): The key to be counted
-            db_subdict (dict): A sub-dict of the database
-
-        Returns:
-            dict: The values and their occurrences given the key
+        返回:
+            dict: key 所对应的 values 以及 occurrences
         """
 
         slot_values = defaultdict(int)  # init to 0
@@ -85,19 +85,16 @@ class DBQuery:
 
     def get_db_results(self, constraints):
         """
-        Get all items in the database that fit the current constraints.
+        在现有的约束条件下，查询database，返回所有满足条件的电影信息
 
-        Looks at each item in the database and if its slots contain all constraints and their values match then the item
-        is added to the return dict.
+        参数:
+            constraints (dict): 现有的informs信息
 
-        Parameters:
-            constraints (dict): The current informs
-
-        Returns:
-            dict: The available items in the database
+        返回:
+            dict: 满足条件的电影信息
         """
 
-        # Filter non-queryable items and keys with the value 'anything' since those are inconsequential to the constraints
+        # 过滤掉不需要查询的keys以及value为'anything'的keys
         new_constraints = {k: v for k, v in constraints.items() if k not in self.no_query and v is not 'anything'}
 
         inform_items = frozenset(new_constraints.items())
@@ -135,16 +132,12 @@ class DBQuery:
 
     def get_db_results_for_slots(self, current_informs):
         """
-        Counts occurrences of each current inform slot (key and value) in the database items.
+        给定现有的 inform slot (key and value)，计算满足条件的database中的item数目
 
-        For each item in the database and each current inform slot if that slot is in the database item (matches key
-        and value) then increment the count for that key by 1.
-
-        Parameters:
-            current_informs (dict): The current informs/constraints
-
-        Returns:
-            dict: Each key in current_informs with the count of the number of matches for that key
+        参数:
+            current_informs (dict): 现有的约束条件，形式为slot-value对
+        返回:
+            dict: current_informs中的每个约束条件所对应的符合条件的item数目
         """
 
         # The items (key, value) of the current informs are used as a key to the cached_db_slot

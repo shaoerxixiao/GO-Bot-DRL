@@ -7,12 +7,8 @@ from dialogue_config import rule_requests, agent_actions
 import re
 
 
-# Some of the code based off of https://jaromiru.com/2016/09/27/lets-make-a-dqn-theory/
-# Note: In original paper's code the epsilon is not annealed and annealing is not implemented in this code either
-
-
 class DQNAgent:
-    """The DQN agent that interacts with the user."""
+    """强化学习模型"""
 
     def __init__(self, state_size, constants):
         """
@@ -20,9 +16,9 @@ class DQNAgent:
 
         The constructor of DQNAgent which saves constants, sets up neural network graphs, etc.
 
-        Parameters:
-            state_size (int): The state representation size or length of numpy array
-            constants (dict): Loaded constants in dict
+        参数:
+            state_size (int): 状态维度
+            constants (dict): 配置参数
 
         """
 
@@ -57,7 +53,7 @@ class DQNAgent:
         self.reset()
 
     def _build_model(self):
-        """Builds and returns model/graph of neural network."""
+        """创建NN模型，输入为state representation，输出为action"""
 
         model = Sequential()
         model.add(Dense(self.hidden_size, input_dim=self.state_size, activation='relu'))
@@ -73,19 +69,18 @@ class DQNAgent:
 
     def get_action(self, state, use_rule=False):
         """
-        Returns the action of the agent given a state.
+        根据state返回agent action
+        两种可选策略：随机生成action;
+                    rule-based policy（基于规则）或者 neural networks（基于深度学习网络）来选择 action
 
-        Gets the action of the agent given the current state. Either the rule-based policy or the neural networks are
-        used to respond.
-
-        Parameters:
+        参数:
             state (numpy.array): The database with format dict(long: dict)
-            use_rule (bool): Indicates whether or not to use the rule-based policy, which depends on if this was called
-                             in warmup or training. Default: False
+            use_rule (bool): 指明是否使用 rule-based policy, 默认为False。
+                             取决于使用warmup模式（取True）还是training模式(取False).
 
-        Returns:
-            int: The index of the action in the possible actions
-            dict: The action/response itself
+        返回:
+            int: action的标号
+            dict: action/response
 
         """
 
@@ -101,13 +96,11 @@ class DQNAgent:
 
     def _rule_action(self):
         """
-        Returns a rule-based policy action.
-
-        Selects the next action of a simple rule-based policy.
+        返回基于rule-based policy 得到的action
 
         Returns:
-            int: The index of the action in the possible actions
-            dict: The action/response itself
+            int: action的标号
+            dict: action/response
 
         """
 
@@ -128,12 +121,12 @@ class DQNAgent:
 
     def _map_action_to_index(self, response):
         """
-        Maps an action to an index from possible actions.
+        输出action对应的序号
 
-        Parameters:
-            response (dict)
+        参数:
+            response (dict)，即为一个action
 
-        Returns:
+        返回:
             int
         """
 
@@ -144,45 +137,29 @@ class DQNAgent:
 
     def _dqn_action(self, state):
         """
-        Returns a behavior model output given a state.
+        返回neural networks（基于深度学习网络）预测得到的 action
 
-        Parameters:
+        参数:
             state (numpy.array)
 
-        Returns:
-            int: The index of the action in the possible actions
-            dict: The action/response itself
+        返回:
+            int: action的标号
+            dict: action/response
         """
 
         index = np.argmax(self._dqn_predict_one(state))
         action = self._map_index_to_action(index)
         return index, action
 
-    def _map_index_to_action(self, index):
-        """
-        Maps an index to an action in possible actions.
-
-        Parameters:
-            index (int)
-
-        Returns:
-            dict
-        """
-
-        for (i, action) in enumerate(self.possible_actions):
-            if index == i:
-                return copy.deepcopy(action)
-        raise ValueError('Index: {} not in range of possible actions'.format(index))
-
     def _dqn_predict_one(self, state, target=False):
         """
-        Returns a model prediction given a state.
+        利用neural networks，根据state预测action （一个输入）
 
-        Parameters:
+        参数:
             state (numpy.array)
             target (bool)
 
-        Returns:
+        返回:
             numpy.array
         """
 
@@ -190,13 +167,13 @@ class DQNAgent:
 
     def _dqn_predict(self, states, target=False):
         """
-        Returns a model prediction given an array of states.
+        利用neural networks，根据state预测action （多个输入）
 
-        Parameters:
-            states (numpy.array)
+        参数:
+            state (numpy.array)
             target (bool)
 
-        Returns:
+        返回:
             numpy.array
         """
 
@@ -205,16 +182,33 @@ class DQNAgent:
         else:
             return self.beh_model.predict(states)
 
+    def _map_index_to_action(self, index):
+        """
+        输出序号对应的action
+
+        参数:
+            index (int)
+
+        返回:
+            dict
+        """
+
+        for (i, action) in enumerate(self.possible_actions):
+            if index == i:
+                return copy.deepcopy(action)
+        raise ValueError('Index: {} not in range of possible actions'.format(index))
+
+
     def add_experience(self, state, action, reward, next_state, done):
         """
-        Adds an experience tuple made of the parameters to the memory.
-
-        Parameters:
-            state (numpy.array)
-            action (int)
-            reward (int)
-            next_state (numpy.array)
-            done (bool)
+        将experience（包括 state, action, reward, next_state, done） 添加至 memory
+        存储方式为memory[memory_index] = (state, action, reward, next_state, done)
+        参数:
+            state (numpy.array) 当前状态
+            action (int) 行为
+            reward (int) 反馈
+            next_state (numpy.array) 下一个状态
+            done (bool) 是否完成对话
 
         """
 
@@ -224,13 +218,13 @@ class DQNAgent:
         self.memory_index = (self.memory_index + 1) % self.max_memory_size
 
     def empty_memory(self):
-        """Empties the memory and resets the memory index."""
+        """清空 memory """
 
         self.memory = []
         self.memory_index = 0
 
     def is_memory_full(self):
-        """Returns true if the memory is full."""
+        """查看memory是否已满"""
 
         return len(self.memory) == self.max_memory_size
 
@@ -243,18 +237,20 @@ class DQNAgent:
 
         """
 
-        # Calc. num of batches to run
+        # 计算batch数量，num_batches = len(memory) // batch_size
         num_batches = len(self.memory) // self.batch_size
         for b in range(num_batches):
+            # 从memory里随机取batch_size大小的样例
             batch = random.sample(self.memory, self.batch_size)
-
+            # 取出样例中的states以及next_states
             states = np.array([sample[0] for sample in batch])
             next_states = np.array([sample[3] for sample in batch])
 
             assert states.shape == (self.batch_size, self.state_size), 'States Shape: {}'.format(states.shape)
             assert next_states.shape == states.shape
-
+            # 根据states,利用深度模型预测action
             beh_state_preds = self._dqn_predict(states)  # For leveling error
+            # vanilla表示用DQN, not vanilla表示用 Double DQN
             if not self.vanilla:
                 beh_next_states_preds = self._dqn_predict(next_states)  # For indexing for DDQN
             tar_next_state_preds = self._dqn_predict(next_states, target=True)  # For target value for DQN (& DDQN)
@@ -275,12 +271,12 @@ class DQNAgent:
             self.beh_model.fit(inputs, targets, epochs=1, verbose=0)
 
     def copy(self):
-        """Copies the behavior model's weights into the target model's weights."""
+        """将behavior model的参数权重复制到target model中"""
 
         self.tar_model.set_weights(self.beh_model.get_weights())
 
     def save_weights(self):
-        """Saves the weights of both models in two h5 files."""
+        """保存模型参数权重"""
 
         if not self.save_weights_file_path:
             return
@@ -290,7 +286,7 @@ class DQNAgent:
         self.tar_model.save_weights(tar_save_file_path)
 
     def _load_weights(self):
-        """Loads the weights of both models from two h5 files."""
+        """ 加载模型参数权重 """
 
         if not self.load_weights_file_path:
             return

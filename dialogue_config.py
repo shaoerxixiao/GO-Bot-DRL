@@ -1,26 +1,26 @@
-# Special slot values (for reference)
-'PLACEHOLDER'  # For informs
-'UNK'  # For requests
-'anything'  # means any value works for the slot with this value
-'no match available'  # When the intent of the agent is match_found yet no db match fits current constraints
+# 一些特殊的词槽值
+'PLACEHOLDER'  # inform slots里会出现的value，表示待查询
+'UNK'  # request slots里会出现的value， 表示目前未知，待询问
+'anything'  # value为anything，表示对取值无所谓
+'no match available'  # 此时agent的intent 为 match_found，但是 db 里找不到满足约束条件的信息
 
 #######################################
-# Usersim Config
+# Usersim Config 用户模拟的相关配置
 #######################################
 # Used in EMC for intent error (and in user)
 usersim_intents = ['inform', 'request', 'thanks', 'reject', 'done']
 
-# The goal of the agent is to inform a match for this key
+# agent 的目标是为这个 key 找到相应的值
 usersim_default_key = 'ticket'
 
 # Required to be in the first action in inform slots of the usersim if they exist in the goal inform slots
 usersim_required_init_inform_keys = ['moviename']
 
 #######################################
-# Agent Config
+# Agent Config 机器的相关配置
 #######################################
 
-# Possible inform and request slots for the agent
+# 所有可能的inform 以及 request slots
 agent_inform_slots = ['moviename', 'theater', 'starttime', 'date', 'genre', 'state', 'city', 'zip', 'critic_rating',
                       'mpaa_rating', 'distanceconstraints', 'video_format', 'theater_chain', 'price', 'actor',
                       'description', 'other', 'numberofkids', usersim_default_key]
@@ -28,7 +28,7 @@ agent_request_slots = ['moviename', 'theater', 'starttime', 'date', 'numberofpeo
                        'critic_rating', 'mpaa_rating', 'distanceconstraints', 'video_format', 'theater_chain', 'price',
                        'actor', 'description', 'other', 'numberofkids']
 
-# Possible actions for agent
+# 所有可能的 actions
 agent_actions = [
     {'intent': 'done', 'inform_slots': {}, 'request_slots': {}},  # Triggers closing of conversation
     {'intent': 'match_found', 'inform_slots': {}, 'request_slots': {}}
@@ -41,14 +41,14 @@ for slot in agent_inform_slots:
 for slot in agent_request_slots:
     agent_actions.append({'intent': 'request', 'inform_slots': {}, 'request_slots': {slot: 'UNK'}})
 
-# Rule-based policy request list
+# 基于规则的回答策略中的request list
 rule_requests = ['moviename', 'starttime', 'city', 'date', 'theater', 'numberofpeople']
 
 # These are possible inform slot keys that cannot be used to query
 no_query_keys = ['numberofpeople', usersim_default_key]
 
 #######################################
-# Global config
+# Global config 全局配置
 #######################################
 
 # These are used for both constraint check AND success check in usersim
@@ -56,10 +56,10 @@ FAIL = -1
 NO_OUTCOME = 0
 SUCCESS = 1
 
-# All possible intents (for one-hot conversion in ST.get_state())
+# 所有的 intents (for one-hot conversion in ST.get_state())
 all_intents = ['inform', 'request', 'done', 'match_found', 'thanks', 'reject']
 
-# All possible slots (for one-hot conversion in ST.get_state())
+# 所有的 slots (for one-hot conversion in ST.get_state())
 all_slots = ['actor', 'actress', 'city', 'critic_rating', 'date', 'description', 'distanceconstraints',
              'genre', 'greeting', 'implicit_value', 'movie_series', 'moviename', 'mpaa_rating',
              'numberofpeople', 'numberofkids', 'other', 'price', 'seating', 'starttime', 'state',
