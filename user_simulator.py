@@ -5,16 +5,14 @@ import random, copy
 
 
 class UserSimulator:
-    """Simulates a real user, to train the agent with reinforcement learning."""
+    """模拟用户，用强化学习训练模型"""
 
     def __init__(self, goal_list, constants, database):
         """
-        The constructor for UserSimulator. Sets dialogue config variables.
-
-        Parameters:
-            goal_list (list): User goals loaded from file
-            constants (dict): Dict of constants loaded from file
-            database (dict): The database in the format dict(long: dict)
+        参数:
+            goal_list (list):用户目的样例，从文件中加载
+            constants (dict): 配置
+            database (dict): 数据库，dict形式
         """
 
         self.goal_list = goal_list
@@ -30,28 +28,29 @@ class UserSimulator:
 
     def reset(self):
         """
-        Resets the user sim. by emptying the state and returning the initial action.
+        重置user sim. 清空state以及初始化action.
 
-        Returns:
-            dict: The initial action of an episode
+        返回:
+            dict: initial action
         """
-
+        # 随机选择用户目的 user goal
         self.goal = random.choice(self.goal_list)
-        # Add default slot to requests of goal
+        # 将default slot 添加到user goal中的request slots中
         self.goal['request_slots'][self.default_key] = 'UNK'
+        # 定义状态，state
         self.state = {}
-        # Add all inform slots informed by agent or user sim to this dict
+        # 存储所有已被填充的inform slots
         self.state['history_slots'] = {}
-        # Any inform slots for the current user sim action, empty at start of turn
+        # 存储当前未被填充的inform slots
         self.state['inform_slots'] = {}
-        # Current request slots the user sim wants to request
+        # 存储当前未被填充的request slots
         self.state['request_slots'] = {}
         # Init. all informs and requests in user goal, remove slots as informs made by user or agent
         self.state['rest_slots'] = {}
         self.state['rest_slots'].update(self.goal['inform_slots'])
         self.state['rest_slots'].update(self.goal['request_slots'])
         self.state['intent'] = ''
-        # False for failure, true for success, init. to failure
+        # False for failure, true for success, 初始化为FAIL
         self.constraint_check = FAIL
 
         return self._return_init_action()
@@ -62,21 +61,25 @@ class UserSimulator:
 
         The initial action has an intent of request, required init. inform slots and a single request slot.
 
-        Returns:
+        返回:
             dict: Initial user response
         """
 
-        # Always request
+        # 初始化user的intent为request
         self.state['intent'] = 'request'
-
+        # 如果goal 里存在inform_slots
         if self.goal['inform_slots']:
-            # Pick all the required init. informs, and add if they exist in goal inform slots
+            # 遍历init. informs, 如果存在于 goal inform slots，
+            # 添加到state['inform_slots'],state['history_slots']
+            # 删除掉state['rest_slots']中对应的item
             for inform_key in self.init_informs:
                 if inform_key in self.goal['inform_slots']:
                     self.state['inform_slots'][inform_key] = self.goal['inform_slots'][inform_key]
                     self.state['rest_slots'].pop(inform_key)
                     self.state['history_slots'][inform_key] = self.goal['inform_slots'][inform_key]
-            # If nothing was added then pick a random one to add
+            # 如果state['inform_slots']为空，随机从goal['inform_slots']里选一项
+            # 添加到state['inform_slots'],state['history_slots']
+            # 删除掉state['rest_slots']中对应的item
             if not self.state['inform_slots']:
                 key, value = random.choice(list(self.goal['inform_slots'].items()))
                 self.state['inform_slots'][key] = value
@@ -101,13 +104,13 @@ class UserSimulator:
 
     def step(self, agent_action):
         """
-        Return the response of the user sim. to the agent by using rules that simulate a user.
+        返回user sim. 的回答
 
         Given the agent action craft a response by using deterministic rules that simulate (to some extent) a user.
         Some parts of the rules are stochastic. Check if the agent has succeeded or lost or still going.
 
         Parameters:
-            agent_action (dict): The agent action that the user sim. responds to
+            agent_action (dict): agent 行为
 
         Returns:
             dict: User sim. response
@@ -116,12 +119,12 @@ class UserSimulator:
             int: Success: -1, 0 or 1 for loss, neither win nor loss, win
         """
 
-        # Assertions -----
-        # No UNK in agent action informs
+        # 申明
+        # agent action中的 inform_slots 的取值不能为 UNK 和PLACEHOLDER
         for value in agent_action['inform_slots'].values():
             assert value != 'UNK'
             assert value != 'PLACEHOLDER'
-        # No PLACEHOLDER in agent at all
+        # agent action中的 request_slots 的取值不能为PLACEHOLDER
         for value in agent_action['request_slots'].values():
             assert value != 'PLACEHOLDER'
         # ----------------
@@ -131,12 +134,13 @@ class UserSimulator:
 
         done = False
         success = NO_OUTCOME
-        # First check round num, if equal to max then fail
+        # 查看round num, 如果达到max_round，则对话失败
         if agent_action['round'] == self.max_round:
             done = True
             success = FAIL
             self.state['intent'] = 'done'
             self.state['request_slots'].clear()
+        # 否则，根据不同的agent intent来作答
         else:
             agent_intent = agent_action['intent']
             if agent_intent == 'request':
@@ -341,7 +345,7 @@ class UserSimulator:
         If the constraint_check is SUCCESS and both the rest and request slots of the state are empty for the agent
         to succeed in this episode/conversation.
 
-        Returns:
+        返回:
             int: Success: -1, 0 or 1 for loss, neither win nor loss, win
         """
 
